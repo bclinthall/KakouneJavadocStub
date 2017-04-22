@@ -25,11 +25,10 @@ def javadocs %{
     try %{
         # select the part of the declaration before )
         exec '"azs.*\)<ret>'
-        # select the parameter declarations
-        exec 's[a-zA-Z][a-zA-Z0-9_\<\>]*\s+[a-zA-Z][a-zA-Z0-9_]*\s*[,)]<ret>'
-        # narrow selection to just parameter names
+        # select paramter declarations
+        exec 's[a-zA-Z][a-zA-Z0-9_\x{3E}\x{3C}]*\s+[a-zA-Z][a-zA-Z0-9_]*\s*[,)]<ret>'
+        # reduce selection to just parameter names
         exec 's[a-zA-Z][a-zA-Z0-9_]*\s*[,)]<ret>H'
-
         # write a line of javadoc for each parameter
         exec -draft -itersel 'y"azO* @param <esc>p'
 
@@ -47,20 +46,19 @@ def javadocs %{
         }
         # select the return type, if there is one.
         try %{
-            # select the two words before the open parenths
-            exec '"azs[a-zA-Z][a-zA-Z0-9_\<\>]*\s+[a-zA-Z][a-zA-Z0-9_]*\s*\(<ret>'
-            # select the first of those words
-            exec 's[a-zA-Z][a-zA-Z0-9_\<\>]*\s<ret>s\b.*\b<ret>'
-            # discard the selection if it is not a non-void return type
-            # Recall, we might be in a constructor
-            exec '<a-K>(public|private|protected|void)<ret>' 
+            # select return type and method name
+            exec 's[a-zA-Z][a-zA-Z0-9_\x{3E}\x{3C}]*\s+[a-zA-Z][a-zA-Z0-9_]*\s*\x{28}<ret>'
+            # reduce selection to just return type, if there is one.
+            exec 's[a-zA-Z][a-zA-Z0-9_\x{3E}\x{3C}]*\s<ret>H'
+            # if the following line does not thrown an error, then we need
+            # an @returns tag.
+            exec '<a-K>(void|public|private|protected)<ret>'
             # write a @return line
             exec 'y"azO* @return <esc>'
-            
         }
     } catch %{
         # we are probably in a class or interface definition
-        exec '"azO* @version 1<ret>*@author <esc>'
+        exec '"azO* @version 1<ret>* @author <esc>'
     }
 
     # write the final */

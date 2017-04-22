@@ -3,18 +3,32 @@ def javadocs %{
     # Save current selection to register c
     exec '"cZ'
     # Select the declaration, and save the selection to register a
-    exec x
-    # exec F<left-curly>
+    exec gh
+    exec F{
+    #}  The parser can't handle an unmatched left curly bracket, but
+    # the commented right curly will trick it into thinking everything is alright.
+
+    # We've worked hard to select the whole declaration.
+    # Let's save that selection to register a.
     exec '"aZ'
-    # Select the indentation at the front of the line and
-    # yank it.  Then write an indented "\**" above, followed
-    # by "* Description goes here." on the next line.
-    exec -draft 'gihGHy"azO/**<esc>gHPo * Description goes here.<esc>'
+
+    # Open the javadoc comment
+    exec 'O/**<esc>'
+
+    # Copy the indentation level of declaration to the /**
+    exec 'jx<a-;>K<a-s><a-&>'
+
+    # write the next comment line
+    exec '"azO * Description goes here.<esc>'
 
     # We might be dealing with a class or interface definition
     try %{
-        # Select the parameters
-        exec '"azs.*\)<ret>s[a-zA-Z][a-zA-Z0-9_]*\s*[,)]<ret>H'
+        # select the part of the declaration before )
+        exec '"azs.*\)<ret>'
+        # select the parameter declarations
+        exec 's[a-zA-Z][a-zA-Z0-9_\<\>]*\s+[a-zA-Z][a-zA-Z0-9_]*\s*[,)]<ret>'
+        # narrow selection to just parameter names
+        exec 's[a-zA-Z][a-zA-Z0-9_]*\s*[,)]<ret>H'
 
         # write a line of javadoc for each parameter
         exec -draft -itersel 'y"azO* @param <esc>p'
@@ -34,9 +48,9 @@ def javadocs %{
         # select the return type, if there is one.
         try %{
             # select the two words before the open parenths
-            exec '"azs[a-zA-Z][a-zA-Z0-9_]*\s+[a-zA-Z][a-zA-Z0-9_]*\s*\(<ret>'
+            exec '"azs[a-zA-Z][a-zA-Z0-9_\<\>]*\s+[a-zA-Z][a-zA-Z0-9_]*\s*\(<ret>'
             # select the first of those words
-            exec 's[a-zA-Z][a-zA-Z0-9_]*\s<ret>s\b.*\b<ret>'
+            exec 's[a-zA-Z][a-zA-Z0-9_\<\>]*\s<ret>s\b.*\b<ret>'
             # discard the selection if it is not a non-void return type
             # Recall, we might be in a constructor
             exec '<a-K>(public|private|protected|void)<ret>' 
@@ -44,6 +58,9 @@ def javadocs %{
             exec 'y"azO* @return <esc>'
             
         }
+    } catch %{
+        # we are probably in a class or interface definition
+        exec '"azO* @version 1<ret>*@author <esc>'
     }
 
     # write the final */
